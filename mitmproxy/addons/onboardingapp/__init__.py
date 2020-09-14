@@ -1,6 +1,8 @@
 import os
+import urllib
 
-from flask import Flask, render_template
+import requests
+from flask import Flask, render_template, request, Response
 
 from mitmproxy.options import CONF_BASENAME, CONF_DIR
 
