@@ -541,17 +541,53 @@ class JsonDumpHandler(RequestHandler):
         query_start = self.get_query_arguments('start')
         query_end = self.get_query_arguments('end')
 
+        pat_timestamp = re.compile(r'\d+$')
+
+        pat_date = re.compile(
+            r'^\d{4}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])-(0[0-9]|1[0-9]|2[0-3])-([0-5][0-9])-([0-5][0-9])$')
+
+        valid_format = None
         if len(query_start) > 0:
-            ts_start = self.get_timestamp(query_start[0])
+            if len(query_end) > 0:
+                if pat_date.match(query_start[0]) and pat_date.match(query_end[0]):
+                    valid_format = "date"
+                elif pat_timestamp.match(query_start[0]) and pat_timestamp.match(query_end[0]):
+                    valid_format = "timestamp"
+                else:
+                    valid_format = None
+            else:
+                if pat_date.match(query_start[0]):
+                    valid_format = "date"
+                elif pat_timestamp.match(query_start[0]):
+                    valid_format = "timestamp"
+                else:
+                    valid_format = None
+        elif len(query_end) > 0:
+            if pat_date.match(query_end[0]):
+                valid_format = "date"
+            elif pat_timestamp.match(query_end[0]):
+                valid_format = "timestamp"
+            else:
+                valid_format = None
 
-        if len(query_end) > 0:
-            ts_end = self.get_timestamp(query_end[0])
-
-        if ts_start is None or ts_end is None:
+        if valid_format is None:
             obj = {}
-            obj['error'] = "Timestamp should be in format yyyy-mm-dd-hh-MM-ss. (e.g. 2000-01-01-18-30-00)"
+            obj['error'] = "Timestamp should be number in milliseconds(e.g. 1600104169000) or in format " \
+                           "yyyy-mm-dd-hh-MM-ss. (e.g. 2020-09-15-02-30-00) "
             self.write(json.dumps(obj))
             return
+
+        if len(query_start) > 0:
+            if valid_format == "date":
+                ts_start = self.get_timestamp(query_start[0])
+            else:
+                ts_start = int(query_start[0]) / 1000
+
+        if len(query_end) > 0:
+            if valid_format == "date":
+                ts_end = self.get_timestamp(query_end[0])
+            else:
+                ts_end = int(query_end[0]) / 1000
 
         self.set_header("Content-Disposition", "attachment; filename=dump.json")
         self.set_header("Content-Type", "application/json; charset=UTF-8")
